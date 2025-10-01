@@ -11,6 +11,24 @@ It is graph visualisation tool, for Apache AGE.
 
 This is a sub-project of [the Apache AGE project](https://age.apache.org/#).
 
+# How to start using Age-Viewer
+ - To start using Age-Viewer we need to have a running postgreSQL database server with Apache Age Extension 
+	 ### Setting up the PostgreSQL server with AGE extension
+	-  Easiest way  for Windows, Mac-OS and Linux Environment using **Docker**
+  
+	> Install docker in advance (https://www.docker.com/get-started), install the version compatible with your OS from the provided link.
+	
+	 **Run Using Docker** :
+   
+	- Get the docker image - 
+	```docker pull apache/age ```
+	
+	- Create AGE docker container
+	```bash
+	docker run --name myPostgresDb -p 5455:5432 -e POSTGRES_USER=postgresUser \
+	-e POSTGRES_PASSWORD=postgresPW -e POSTGRES_DB=postgresDB -d apache/age
+	```
+
 # Recommend Node Version & install module
 
 - Node version - ^14.16.0
@@ -51,23 +69,6 @@ Install latest **pm2** with :
 
 	```
 
-  # How to start using Age-Viewer
- - To start using Age-Viewer we need to have a running postgreSQL database server with Apache Age Extension 
-	 ### Setting up the PostgreSQL server with AGE extension
-	-  Easiest way  for Windows, Mac-OS and Linux Environment using **Docker**
-  
-	> Install docker in advance (https://www.docker.com/get-started), install the version compatible with your OS from the provided link.
-	
-	 **Run Using Docker** :
-   
-	- Get the docker image - 
-	```docker pull apache/age ```
-	
-	- Create AGE docker container
-	```bash
-	docker run --name myPostgresDb -p 5455:5432 -e POSTGRES_USER=postgresUser \
-	-e POSTGRES_PASSWORD=postgresPW -e POSTGRES_DB=postgresDB -d apache/age
-	```
 	
 	| Docker variables| Description |
 	|--|--|
