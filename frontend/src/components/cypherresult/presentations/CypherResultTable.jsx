@@ -20,71 +20,74 @@
 import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { Table } from 'antd';
-import { uuid } from 'cytoscape/src/util';
 import CypherResultTab from '../../cytoscape/CypherResultTab';
+
+// Stable uuid helper (no external/internal library paths). Uses crypto if available, else falls back.
+const uuid = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.floor(Math.random() * 16);
+    // clarify precedence with parentheses to satisfy eslint no-mixed-operators
+    const v = c === 'x' ? r : ((r & 0x3) | 0x8); // eslint-disable-line no-bitwise
+    return v.toString(16);
+  });
+};
 
 const CypherResultTable = ({ data, ...props }) => {
   const [localColumns, setLocalColumns] = useState([]);
   const [localRows, setLocalRows] = useState([]);
 
   useEffect(() => {
+    if (!data || !data.columns || !data.rows) return;
+
     const randKeyName = `key_${uuid()}`;
     let hasKey = false;
-    const columnsForFTable = [];
-    data.columns.forEach((key) => {
-      let isKey = false;
-      if (key === 'key') {
-        isKey = true;
-        hasKey = true;
-      }
-      columnsForFTable.push({
-        title: key,
-        dataIndex: isKey ? randKeyName : key,
-        key: isKey ? randKeyName : key,
-        render: (text) => <>{JSON.stringify(text)}</>,
-      });
-    });
-    setLocalColumns(columnsForFTable);
 
-    if (props.filterTable?.length > 0) {
-      const newItem = [];
-      data.rows.forEach((item) => {
-        props.filterTable.forEach((filter) => {
-          if ((filter.property.label === item.r.label
-            && item.r.properties[filter.property.property].includes(filter.keyword))
-            || (filter.property.label === item.v.label
-              && item.v.properties[filter.property.property].includes(filter.keyword))
-            || (filter.property.label === item.v2.label
-              && item.v2.properties[filter.property.property].includes(filter.keyword))) {
-            newItem.push(item);
-          }
-        });
-      });
-      setLocalRows(newItem.map((item) => {
-        const filteredItem = {
-          ...item,
-        };
-        if (hasKey) {
-          newItem[randKeyName] = newItem.key;
-          delete newItem.key;
-        }
-        filteredItem.key = uuid();
-        return filteredItem;
-      }));
-    } else {
-      setLocalRows(data.rows.map((item) => {
-        const newItem = {
-          ...item,
-        };
-        if (hasKey) {
-          newItem[randKeyName] = newItem.key;
-          delete newItem.key;
-        }
-        newItem.key = uuid();
-        return newItem;
-      }));
+    // Build columns once per change in data.columns
+    const derivedColumns = data.columns.map((col) => {
+      const isKey = col === 'key';
+      if (isKey) hasKey = true;
+      return {
+        title: col,
+        dataIndex: isKey ? randKeyName : col,
+        key: isKey ? randKeyName : col,
+        render: (text) => <>{JSON.stringify(text)}</>,
+      };
+    });
+    setLocalColumns(derivedColumns);
+
+    // Optional filtering
+    let workingRows = data.rows;
+    if (props.filterTable?.length) {
+      const filters = props.filterTable;
+      workingRows = data.rows.filter((row) => (
+        filters.some((filter) => {
+          const propName = filter.property.property;
+          const keyword = filter.keyword;
+          const label = filter.property.label;
+          const rMatch = (label === row.r?.label)
+            && row.r?.properties?.[propName]?.includes?.(keyword);
+          const vMatch = (label === row.v?.label)
+            && row.v?.properties?.[propName]?.includes?.(keyword);
+            // v2 matching (third element)
+          const v2Match = (label === row.v2?.label)
+            && row.v2?.properties?.[propName]?.includes?.(keyword);
+          return rMatch || vMatch || v2Match;
+        })
+      ));
     }
-  }, [props.filterTable]);
+
+    const mapped = workingRows.map((row) => {
+      const copy = { ...row };
+      if (hasKey && Object.prototype.hasOwnProperty.call(copy, 'key')) {
+        copy[randKeyName] = copy.key;
+        delete copy.key;
+      }
+      copy.key = uuid();
+      return copy;
+    });
+    setLocalRows(mapped);
+  }, [props.filterTable, data]);
 
   if (data.command && data.command.toUpperCase().match('(GRAPH|COPY|UPDATE).*')) {
     return (
@@ -94,12 +97,33 @@ const CypherResultTable = ({ data, ...props }) => {
         </span>
       </div>
     );
-  } if (data.command && data.command.toUpperCase() === 'CREATE') {
-    return <div style={{ margin: '25px' }}><span style={{ whiteSpace: 'pre-line' }}>{data.command.toUpperCase()}</span></div>;
-  } if (data.command && data.command.toUpperCase() === 'ERROR') {
-    return <div style={{ margin: '25px' }}><span style={{ whiteSpace: 'pre-line' }}>{data.message}</span></div>;
-  } if (data.command === null) {
-    return <div style={{ margin: '25px' }}><span style={{ whiteSpace: 'pre-line' }}>Query not entered!</span></div>;
+  }
+  if (data.command && data.command.toUpperCase() === 'CREATE') {
+    return (
+      <div style={{ margin: '25px' }}>
+        <span style={{ whiteSpace: 'pre-line' }}>
+          {data.command.toUpperCase()}
+        </span>
+      </div>
+    );
+  }
+  if (data.command && data.command.toUpperCase() === 'ERROR') {
+    return (
+      <div style={{ margin: '25px' }}>
+        <span style={{ whiteSpace: 'pre-line' }}>
+          {data.message}
+        </span>
+      </div>
+    );
+  }
+  if (data.command === null) {
+    return (
+      <div style={{ margin: '25px' }}>
+        <span style={{ whiteSpace: 'pre-line' }}>
+          Query not entered!
+        </span>
+      </div>
+    );
   }
 
   const { refKey, setIsTable } = props;

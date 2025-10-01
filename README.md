@@ -5,11 +5,126 @@
     <img src="https://img.shields.io/github/stars/apache/age-viewer"/>
 </p>
 
-# What is Apache-Age Viewer
-Apache-Age Viewer is a web based user interface that provides visualization of graph data stored in a postgreSQL database with AGE extension. 
-It is graph visualisation tool, for Apache AGE.
+# What is Apache AGE Viewer
+Apache AGE Viewer is a web based user interface that provides visualization of graph data stored in a PostgreSQL database with the Apache AGE extension. It lets you explore graphs (nodes, edges, properties) via Cypher queries and graphical layouts.
 
 This is a sub-project of [the Apache AGE project](https://age.apache.org/#).
+
+---
+## Quick Overview
+You need TWO things running:
+1. A PostgreSQL + AGE server (the graph database engine)
+2. The AGE Viewer web application (this repository) – frontend + backend
+
+They are independent: the database image is NOT this viewer image. The viewer connects to an already running AGE-enabled Postgres.
+
+---
+## 1. Start a PostgreSQL + AGE Server (External Dependency)
+If you do not already have an AGE-enabled Postgres running, start one with Docker:
+
+```bash
+docker run --name my-age-db -p 5455:5432 \
+	-e POSTGRES_USER=postgresUser \
+	-e POSTGRES_PASSWORD=postgresPW \
+	-e POSTGRES_DB=postgresDB \
+	-d apache/age
+```
+
+After it starts, create a graph (inside the container or via psql):
+```bash
+docker exec -it my-age-db psql -U postgresUser -d postgresDB -c "SELECT create_graph('demo_graph');"
+```
+
+You can verify connectivity:
+```bash
+PGPASSWORD=postgresPW psql -h localhost -p 5455 -U postgresUser -d postgresDB -c 'SELECT version();'
+```
+
+---
+## 2. Run AGE Viewer (This Repo)
+
+### Recommended Node Version
+
+The project historically targeted Node 14, but dependencies now require newer JS syntax. Use **Node 18 LTS** (or newer) for local development.
+
+### Local (non-Docker) Development
+```bash
+git clone <this-repo>
+cd age-viewer
+npm run setup      # installs root + backend + frontend deps
+npm run start      # starts backend (3001) & CRA frontend dev server (3000)
+```
+Open: http://localhost:3000
+
+Then connect to your AGE DB (see Connection section below).
+
+### Docker Development (both processes inside one container)
+We provide a simple Dockerfile that launches the dev processes. Build and run:
+```bash
+docker build -t age-viewer:dev .
+docker run --name age-viewer -p 3000:3000 -p 3001:3001 --rm \
+	-e NODE_OPTIONS=--openssl-legacy-provider \
+	age-viewer:dev
+```
+Visit http://localhost:3000
+
+Note: This image runs the frontend in development (hot reload) and installs all dev dependencies. For a slimmer production image you would build the frontend and serve static assets (future improvement).
+
+---
+## 3. Connect AGE Viewer to the AGE Database
+Once the viewer UI is up, you must establish a session + DB connection before metadata and graph panels populate.
+
+### Via UI
+Use the connection panel form: supply the host, port, database, user, password, and graph name (e.g. `demo_graph`). Click *Connect*.
+
+Typical values if you used the sample docker run above:
+- Host: `localhost` (or `host.docker.internal` if the viewer runs in Docker and Postgres is on the host)
+- Port: `5455`
+- Database: `postgresDB`
+- User: `postgresUser`
+- Password: `postgresPW`
+- Graph: `demo_graph`
+
+### Via cURL (manual test)
+If the UI connect button seems unresponsive, you can manually POST the connection:
+```bash
+curl -i -X POST http://localhost:3000/api/v1/db/connect \
+	-H 'Content-Type: application/json' \
+	-d '{
+		"host": "localhost",
+		"port": 5455,
+		"database": "postgresDB",
+		"user": "postgresUser",
+		"password": "postgresPW",
+		"graph": "demo_graph"
+	}'
+```
+Then fetch status / metadata:
+```bash
+curl -i http://localhost:3000/api/v1/db
+curl -i -X POST http://localhost:3000/api/v1/db/meta -H 'Content-Type: application/json' -d '{"currentGraph":"demo_graph"}'
+```
+
+If you receive `Not connected`, verify you created the graph and the host/port credentials are correct.
+
+---
+## 4. Production Mode (Optional)
+To run with built frontend assets:
+```bash
+# Build frontend + backend
+npm run build-front
+npm run build-back
+
+# (Future enhancement) Serve built frontend via backend or a static server
+```
+You can use `pm2` for process management:
+```bash
+pm2 start ecosystem.config.js
+```
+
+---
+## Legacy Content (Original Instructions)
+The original README mixed database container instructions with viewer steps. They are now separated above for clarity. Below is the historical section retained for reference.
 
 # How to start using Age-Viewer
  - To start using Age-Viewer we need to have a running postgreSQL database server with Apache Age Extension 
@@ -29,45 +144,35 @@ This is a sub-project of [the Apache AGE project](https://age.apache.org/#).
 	-e POSTGRES_PASSWORD=postgresPW -e POSTGRES_DB=postgresDB -d age-viewer:local
 	```
 
-# Recommend Node Version & install module
+## Recommend Node Module (Optional)
+`pm2` is optional for supervising the backend in a production-like deployment:
+```bash
+npm i -g pm2
+```
 
-- Node version - ^14.16.0
-
-- Node Module - pm2 
-
-Install latest **pm2** with :
-``` npm i pm2 ```
-
-
-> [pm2](https://www.npmjs.com/package/pm2) is an NPM module to run the project in production mode, and hence is optional for getting started with setting up development environment for Age-Viewer 
-
-# Running Age-Viewer
-
- - Install the required node modules using  :  
-	```npm run setup```
-- Run Age-Viewer using : 
-```npm run start```
-
->This will start the age-viewer on http://localhost:3000 if port 3000 is free.
+### Original Dev Commands
+```bash
+npm run setup
+npm run start
+```
+Frontend: http://localhost:3000 (proxying to backend 3001)
 
 
-# How to build using command
-
-- Build the front-end : 
-```npm run build-front ```
-
-- Build the back-end :
-``` npm run build-back```
-
-- Start the project in production mode :
-  ``` 
-	pm2 stop ag-viewer-develop
-
-	pm2 delete ag-viewer-develop
-
-	pm2 start ecosystem.config.js
-
-	```
+### Build Commands
+Frontend:
+```bash
+npm run build-front
+```
+Backend (transpile):
+```bash
+npm run build-back
+```
+PM2 lifecycle example:
+```bash
+pm2 stop ag-viewer-develop || true
+pm2 delete ag-viewer-develop || true
+pm2 start ecosystem.config.js
+```
 
 	
 	| Docker variables| Description |
