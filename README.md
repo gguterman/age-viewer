@@ -20,13 +20,13 @@ This is a sub-project of [the Apache AGE project](https://age.apache.org/#).
 	
 	 **Run Using Docker** :
    
-	- Get the docker image - 
-	```docker pull apache/age ```
+	- Build the docker image from main
+	```docker build -t age-viewer:local .```
 	
 	- Create AGE docker container
 	```bash
 	docker run --name myPostgresDb -p 5455:5432 -e POSTGRES_USER=postgresUser \
-	-e POSTGRES_PASSWORD=postgresPW -e POSTGRES_DB=postgresDB -d apache/age
+	-e POSTGRES_PASSWORD=postgresPW -e POSTGRES_DB=postgresDB -d age-viewer:local
 	```
 
 # Recommend Node Version & install module
