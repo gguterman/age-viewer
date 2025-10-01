@@ -23,7 +23,7 @@ This is a sub-project of [the Apache AGE project](https://age.apache.org/#).
 	- Build the docker image from main
 	```docker build -t age-viewer:local .```
 	
-	- Create AGE docker container
+	- Create AGE docker container (be sure to set these env vars!)
 	```bash
 	docker run --name myPostgresDb -p 5455:5432 -e POSTGRES_USER=postgresUser \
 	-e POSTGRES_PASSWORD=postgresPW -e POSTGRES_DB=postgresDB -d age-viewer:local
